@@ -1,0 +1,31 @@
+{
+  "book": {
+    "series": "示例丛书",
+    "title": "示例题集（入门篇）",
+    "author": "佚名",
+    "publisher": "",
+    "isbn": ""
+  },
+  "note": "示例目录。真实教材目录请放在同目录的 catalog.local.json（已 gitignore），格式与本文件一致，存在即自动覆盖本文件。每个小组用 from/to 两个端点表示连续题号。",
+  "range": { "from": 1, "to": 24 },
+  "units": [
+    {
+      "no": 1,
+      "name": "第一单元 · 做活",
+      "goal": "做活",
+      "groups": [
+        { "name": "占据要点（一）", "goal": "做活", "from": 1,  "to": 6  },
+        { "name": "占据要点（二）", "goal": "做活", "from": 7,  "to": 12 }
+      ]
+    },
+    {
+      "no": 2,
+      "name": "第二单元 · 杀棋",
+      "goal": "杀棋",
+      "groups": [
+        { "name": "缩小眼位（一）", "goal": "杀棋", "from": 13, "to": 18 },
+        { "name": "缩小眼位（二）", "goal": "杀棋", "from": 19, "to": 24 }
+      ]
+    }
+  ]
+}

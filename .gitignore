@@ -1,0 +1,49 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# backend（密钥与本地虚拟环境/测试库不入库）
+backend/.env
+backend/.venv
+backend/**/*.db
+backend/**/__pycache__
+
+# 本地测试 / 生成的临时素材（不入库）
+测试棋形-*.jpg
+围棋网页应用背景图生成.png
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 评测集切图（由原始书页照片生成，勿入库）
+eval/tiles/
+eval/pages/
+题目照片/
+
+# 部署目标（含服务器地址，不入库）
+deploy/deploy.env
+
+# 教材内容：某本在售教材的完整目录与 582 道题的棋形转录，
+# 属该书内容，不进公开仓库（本机保留，构建时自动使用）
+src/data/catalog.local.json
+eval/ground-truth.json
+eval/auto-read.json
+eval/__pycache__/

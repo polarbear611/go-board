@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>落子音效试听</title>
+<style>
+  body { font: 15px/1.6 system-ui, sans-serif; max-width: 34rem; margin: 3rem auto; padding: 0 1.5rem;
+         background: #faf7f2; color: #2b2622; }
+  h1 { font-size: 1.1rem; }
+  p { color: #6b6259; font-size: 13px; }
+  button { font: inherit; padding: .5rem 1rem; margin: .25rem .25rem 0 0; cursor: pointer;
+           border: 1px solid #d9d0c3; background: #fff; border-radius: .6rem; }
+  button:hover { background: #f2ece2; }
+  a { display: inline-block; margin-top: 1rem; }
+</style>
+
+<h1>落子音效试听</h1>
+<p>音源见 public/sounds/README.md。逻辑直接 import 自 <code>src/utils/sound.js</code>。<br>
+   需要 vite dev 服务器：<code>npm run dev</code> 后访问 /eval/sound-preview.html</p>
+
+<div id="live"></div>
+<div id="out"></div>
+
+<script type="module">
+import { playMove, preloadSounds, setMuted } from '/src/utils/sound.js'
+
+setMuted(false)
+preloadSounds()
+
+for (const [label, n] of [['落子', 0], ['落子 + 提 1 子', 1], ['落子 + 提多子', 3]]) {
+  const b = document.createElement('button')
+  b.textContent = label
+  b.onclick = () => playMove(n)
+  document.getElementById('live').appendChild(b)
+}
+// 连下若干手，听听重复感
+const seq = document.createElement('button')
+seq.textContent = '连下 6 手'
+seq.onclick = () => [0, 0, 0, 1, 0, 3].forEach((n, i) => setTimeout(() => playMove(n), i * 700))
+document.getElementById('live').appendChild(seq)
+</script>

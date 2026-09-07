@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/* 设计令牌。Tailwind v4 无 config 文件，@theme 是唯一的令牌落点。
+ *
+ * 暖纸浅色单主题。原先 ControlPanel 整套表面靠 bg-white/5、border-white/10
+ * 这类半透明叠加实现，只在深色底上成立 —— 换到浅底会整片糊掉，所以本次
+ * 把它们全部换成了**实色表面 + 实色边框**（--color-surface / --color-rule）。
+ * 新增面板请沿用实色令牌，不要再引入 white/N 叠加。
+ */
+@theme {
+  /* 三级底：页面 / 面板 / 凹陷 */
+  --color-ground:    #f6f2e9;
+  --color-surface:   #fffdf8;
+  --color-sunk:      #efe9dc;
+
+  /* 暖中性文字阶 */
+  --color-ink:       #241f1a;
+  --color-ink-soft:  #5d5449;
+  --color-ink-faint: #8d8375;
+
+  --color-rule:      #ddd4c2;
+
+  /* 强调色。浅底上要压深才有对比度，配白字用。 */
+  --color-accent:      #b5762a;
+  --color-accent-soft: #f0dcbd;
+
+  /* 语义色，浅底版本 */
+  --color-danger:  #b5442a;
+  --color-success: #47784a;
+
+  /* 棋盘木色。SVG 属性需要字面值，constants/board.js 里另有一份硬编码，
+   * 改动请同步。这里登记一份是为了 UI 侧能引用同一个颜色。 */
+  --color-board:      #DCB468;
+  --color-board-line: #5C3D1E;
+
+  --font-display: "Spectral", "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* 注意：这里曾有一段 `*{margin:0;padding:0}` 重置。它是**未分层**的 CSS，
+ * 而 Tailwind v4 的工具类在 @layer utilities 里 —— 未分层规则优先级恒高于
+ * 分层规则，于是全站的 p-* / m-* 工具类**全部失效**（计算值恒为 0）。
+ * Tailwind 的 preflight 本身已经做了同样的重置，所以直接删掉即可，别加回来。
+ */
+
+body {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* 非法落子抖动。原先内联在 Board.jsx 的 <style> 里，每次渲染都重新注入。 */
+@keyframes board-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-4px); }
+  40%      { transform: translateX(4px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes board-shake {
+    0%, 100% { transform: translateX(0); }
+  }
+}

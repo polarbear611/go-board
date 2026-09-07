@@ -1,0 +1,21 @@
+services:
+  api:
+    build: .
+    container_name: go-board-api
+    env_file: .env
+    environment:
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-go_board}
+    ports:
+      # 仅便于本地调试，线上经 nginx 反代 /api
+      - "8002:8000"
+    networks:
+      - go-board-net
+    restart: unless-stopped
+
+networks:
+  go-board-net:
+    external: true
