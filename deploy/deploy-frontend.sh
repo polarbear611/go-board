@@ -29,7 +29,10 @@ rsync -avz --delete "$ROOT/dist/" "$SRV:$WEBDIR/"
 echo "==> 自检：线上 index.html 是否指向本次构建的产物"
 JS=$(basename "$(ls "$ROOT"/dist/assets/*.js | head -1)")
 if curl -fsS -m 20 "$SITE/" | grep -q "$JS"; then
-  echo "✅ 前端已更新：$SITE（${JS}）"
+  # 花括号不能省：$SITE 后面紧跟全角括号时，bash 会把多字节字符一起
+  # 读进变量名，于是在 set -u 下报 "SITE（: unbound variable" —— 而且只在
+  # 自检**通过**的那条分支上炸，部署其实已经成功了，看着像部署失败。
+  echo "✅ 前端已更新：${SITE}（${JS}）"
 else
   echo "❌ 线上 index.html 未引用 ${JS} —— 同步目录可能不是 nginx 的站点根，请核对 WEBDIR" >&2
   exit 1
