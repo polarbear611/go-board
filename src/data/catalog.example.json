@@ -1,4 +1,7 @@
 {
+  "id": "example",
+  "prefix": "",
+  "order": 1,
   "book": {
     "series": "示例丛书",
     "title": "示例题集（入门篇）",
@@ -6,7 +9,7 @@
     "publisher": "",
     "isbn": ""
   },
-  "note": "示例目录。真实教材目录请放在同目录的 catalog.local.json（已 gitignore），格式与本文件一致，存在即自动覆盖本文件。每个小组用 from/to 两个端点表示连续题号。",
+  "note": "示例目录。真实教材目录请放在同目录的 catalog.local.json（已 gitignore），格式与本文件一致，存在即自动覆盖本文件。每个小组用 from/to 两个端点表示连续题号。多本书就放多个文件：catalog.<书名>.local.json 会被一并加载，按 order 排序。第二本起必须设一个非空 prefix（如 \"手筋-\"）—— 题号是题库主键，两本书的第 265 题不带前缀会互相覆盖。prefix 定了就不能再改。",
   "range": { "from": 1, "to": 24 },
   "units": [
     {

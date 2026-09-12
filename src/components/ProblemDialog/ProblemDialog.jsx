@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { listProblems, getProblem, saveProblem } from '../../api/problems'
-import catalog, { locate, problemsOf, describe } from '../../data/catalog'
+import { books, bookOf, locate, problemsOf, bareNo, describe } from '../../data/catalog'
 
 // 时间戳 → 友好显示（如 06-21 14:30）
 function fmtTime(ts) {
@@ -64,7 +64,7 @@ export function SaveProblemDialog({ getBoardData, onClose }) {
                 value={problemNo}
                 onChange={(e) => setProblemNo(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !disabled) handleSave() }}
-                placeholder="如 300，或自己起名"
+                placeholder={books.length > 1 ? `如 300 / ${books[1].prefix}300，或自己起名` : '如 300，或自己起名'}
                 className="w-full px-4 py-3 rounded-xl bg-sunk border border-rule text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/60 transition-all"
               />
               <p className="text-xs mt-2 h-4 text-ink-faint">
@@ -99,12 +99,16 @@ export function SaveProblemDialog({ getBoardData, onClose }) {
 // 目录是书的结构、与题库里实际有哪些题无关，所以两者分开：
 // 目录决定层级，`have` 决定哪些能点。没入库的题号照样显示但置灰，
 // 这样「这一组还差几道」一眼可见。
+//
+// 多本书时最外面再套一层「选书」。只有一本时这一层自动省掉 —— 让单册用户
+// （以及 clone 下来只有示例目录的人）看到的层级和以前一模一样。
 export function LoadProblemDialog({ onLoad, onClose }) {
   const [list, setList] = useState(null)         // null = 加载中
   const [error, setError] = useState('')         // 列表读取失败：挡住整个视图
   const [pickError, setPickError] = useState('') // 单题打开失败：列表仍可用
   const [reloadKey, setReloadKey] = useState(0)
   const [tab, setTab] = useState('catalog')      // catalog | recent
+  const [bookId, setBookId] = useState(books.length === 1 ? books[0].id : null)
   const [unitNo, setUnitNo] = useState(null)
   const [groupKey, setGroupKey] = useState(null) // group.from
   const [jump, setJump] = useState('')
@@ -126,13 +130,16 @@ export function LoadProblemDialog({ onLoad, onClose }) {
     () => (list || []).filter((x) => !locate(x.problemNo)),
     [list],
   )
-  const countIn = (from, to) => {
+  // 数「这一组/这一单元在库里有几道」。**必须按完整题号数**（含书前缀）——
+  // 按裸数字数的话，死活册的 265 会被算进手筋册的进度里。
+  const countIn = (groups) => {
     let n = 0
-    for (let i = from; i <= to; i++) if (have.has(String(i))) n++
+    for (const g of groups) for (const no of problemsOf(g)) if (have.has(no)) n++
     return n
   }
 
-  const unit = catalog.units.find((u) => u.no === unitNo) || null
+  const book = bookId ? bookOf(bookId) : null
+  const unit = book?.units.find((u) => u.no === unitNo) || null
   const group = unit?.groups.find((g) => g.from === groupKey) || null
 
   async function handlePick(problemNo) {
@@ -150,20 +157,31 @@ export function LoadProblemDialog({ onLoad, onClose }) {
     }
   }
 
+  // 跳转框接受裸数字，也接受带前缀的完整题号。裸数字在当前这本书里解释 ——
+  // 站在手筋册里敲 265，想去的是手筋 265，不是死活 265。
   function handleJump(e) {
     e.preventDefault()
-    const n = jump.trim()
-    const hit = locate(n)
-    if (!hit) { setPickError(`第 ${n} 题不在教材目录内`); return }
+    const raw = jump.trim()
+    if (!raw) return
+    const guess = book && /^\d+$/.test(raw) ? `${book.prefix}${raw}` : raw
+    const hit = locate(guess) || locate(raw)
+    if (!hit) { setPickError(`「${raw}」不在教材目录内`); return }
+    setBookId(hit.book.id)
     setUnitNo(hit.unit.no)
     setGroupKey(hit.group.from)
     setPickError('')
   }
 
+  const multi = books.length > 1
   const crumb = (
     <div className="flex items-center gap-1.5 text-xs text-ink-faint mb-3 flex-wrap">
-      <button onClick={() => { setUnitNo(null); setGroupKey(null) }}
+      <button onClick={() => { setBookId(multi ? null : books[0].id); setUnitNo(null); setGroupKey(null) }}
               className="hover:text-ink transition-colors">目录</button>
+      {multi && book && <>
+        <span>/</span>
+        <button onClick={() => { setUnitNo(null); setGroupKey(null) }}
+                className="hover:text-ink transition-colors">{book.title}</button>
+      </>}
       {unit && <>
         <span>/</span>
         <button onClick={() => setGroupKey(null)} className="hover:text-ink transition-colors">
@@ -173,6 +191,27 @@ export function LoadProblemDialog({ onLoad, onClose }) {
       {group && <><span>/</span><span className="text-ink">{group.name}</span></>}
     </div>
   )
+
+  const jumpForm = (
+    <form onSubmit={handleJump} className="flex gap-2 mb-1">
+      <input value={jump} onChange={(e) => setJump(e.target.value)}
+        placeholder={book?.prefix ? `直接跳到题号，如 300 或 ${book.prefix}300` : '直接跳到题号，如 300'}
+        className="flex-1 px-3 py-2 rounded-lg bg-sunk border border-rule text-ink text-sm placeholder:text-ink-faint focus:outline-none focus:border-accent/60" />
+      <button type="submit"
+        className="px-4 rounded-lg bg-sunk border border-rule text-ink-soft text-sm hover:text-ink transition-all">跳转</button>
+    </form>
+  )
+
+  const extrasCard = extras.length > 0 ? (
+    <button onClick={() => setTab('recent')}
+      className="w-full px-4 py-3 rounded-xl bg-sunk border border-rule text-left hover:border-accent/60 transition-all">
+      <span className="text-ink font-medium">其他题目</span>
+      <span className="block text-ink-faint text-xs mt-0.5">
+        {extras.length} 道不在教材目录内（{extras.slice(0, 3).map((x) => x.problemNo).join('、')}
+        {extras.length > 3 ? ' 等' : ''}）
+      </span>
+    </button>
+  ) : null
 
   return (
     <div className={OVERLAY}>
@@ -243,18 +282,38 @@ export function LoadProblemDialog({ onLoad, onClose }) {
               <div>
                 {crumb}
 
-                {!unit && (
+                {!book && (
                   <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                    <form onSubmit={handleJump} className="flex gap-2 mb-1">
-                      <input value={jump} onChange={(e) => setJump(e.target.value)}
-                        inputMode="numeric" placeholder="直接跳到题号，如 300"
-                        className="flex-1 px-3 py-2 rounded-lg bg-sunk border border-rule text-ink text-sm placeholder:text-ink-faint focus:outline-none focus:border-accent/60" />
-                      <button type="submit"
-                        className="px-4 rounded-lg bg-sunk border border-rule text-ink-soft text-sm hover:text-ink transition-all">跳转</button>
-                    </form>
-                    {catalog.units.map((u) => {
+                    {jumpForm}
+                    {books.map((b) => {
+                      const all = b.units.flatMap((u) => u.groups)
+                      const n = countIn(all)
+                      const total = all.reduce((s, g) => s + (g.to - g.from + 1), 0)
+                      return (
+                        <button key={b.id} onClick={() => setBookId(b.id)}
+                          className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-sunk border border-rule text-left hover:border-accent/60 hover:bg-accent-soft/50 transition-all">
+                          <span className="min-w-0">
+                            <span className="text-ink font-medium">{b.title}</span>
+                            <span className="block text-ink-faint text-xs mt-0.5 font-mono">
+                              {b.units.length} 单元 · {all.length} 组{b.prefix ? ` · 题号 ${b.prefix}N` : ''}
+                            </span>
+                          </span>
+                          <span className={`text-xs font-mono flex-shrink-0 ml-3 ${n ? 'text-accent' : 'text-ink-faint'}`}>
+                            {n}/{total}
+                          </span>
+                        </button>
+                      )
+                    })}
+                    {extrasCard}
+                  </div>
+                )}
+
+                {book && !unit && (
+                  <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                    {jumpForm}
+                    {book.units.map((u) => {
                       const from = u.groups[0].from, to = u.groups[u.groups.length - 1].to
-                      const n = countIn(from, to)
+                      const n = countIn(u.groups)
                       return (
                         <button key={u.no} onClick={() => setUnitNo(u.no)}
                           className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-sunk border border-rule text-left hover:border-accent/60 hover:bg-accent-soft/50 transition-all">
@@ -268,23 +327,14 @@ export function LoadProblemDialog({ onLoad, onClose }) {
                         </button>
                       )
                     })}
-                    {extras.length > 0 && (
-                      <button onClick={() => setTab('recent')}
-                        className="w-full px-4 py-3 rounded-xl bg-sunk border border-rule text-left hover:border-accent/60 transition-all">
-                        <span className="text-ink font-medium">其他题目</span>
-                        <span className="block text-ink-faint text-xs mt-0.5">
-                          {extras.length} 道不在教材目录内（{extras.slice(0, 3).map((x) => x.problemNo).join('、')}
-                          {extras.length > 3 ? ' 等' : ''}）
-                        </span>
-                      </button>
-                    )}
+                    {!multi && extrasCard}
                   </div>
                 )}
 
                 {unit && !group && (
                   <div className="grid grid-cols-2 gap-2 max-h-96 overflow-y-auto pr-1">
                     {unit.groups.map((g) => {
-                      const n = countIn(g.from, g.to)
+                      const n = countIn([g])
                       return (
                         <button key={g.from} onClick={() => setGroupKey(g.from)}
                           className="px-3 py-2.5 rounded-xl bg-sunk border border-rule text-left hover:border-accent/60 hover:bg-accent-soft/50 transition-all">
@@ -306,13 +356,15 @@ export function LoadProblemDialog({ onLoad, onClose }) {
                     <div className="grid grid-cols-3 gap-2">
                       {problemsOf(group).map((no) => {
                         const ok = have.has(no)
+                        // 按钮上只显示裸号：带前缀的 "手筋-265" 在三列网格里挤不下，
+                        // 而站在这一组里书是哪本已经由面包屑交代过了
                         return (
                           <button key={no} disabled={!ok} onClick={() => handlePick(no)}
                             title={ok ? `打开第 ${no} 题` : '题库里还没有这道题'}
                             className={`py-4 rounded-xl border text-center font-mono text-lg transition-all ${
                               ok ? 'bg-sunk border-rule text-ink hover:border-accent/60 hover:bg-accent-soft/50'
                                  : 'bg-surface border-rule/60 text-ink-faint cursor-not-allowed'}`}>
-                            {no}
+                            {bareNo(no, group)}
                           </button>
                         )
                       })}

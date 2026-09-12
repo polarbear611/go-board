@@ -3,7 +3,7 @@ import Board from './components/Board/Board'
 import ControlPanel from './components/ControlPanel/ControlPanel'
 import ImageImport from './components/ImageImport/ImageImport'
 import { SaveProblemDialog, LoadProblemDialog } from './components/ProblemDialog/ProblemDialog'
-import catalog from './data/catalog'
+import { catalogSummary } from './data/catalog'
 import BoardBackground from './components/Background/BoardBackground'
 import { useBoardStore } from './store/useBoardStore'
 import { boardToLabels, labelsToBoard } from './constants/board'
@@ -150,9 +150,9 @@ function App() {
         <h1 className="text-xl font-semibold tracking-tight text-ink font-display leading-none">
           GoSandbox
         </h1>
-        {/* 教材名从目录读，别再写死 —— 上学期是手筋，这学期换成了死活 */}
+        {/* 教材名从目录读，别再写死 —— 在用的书不止一本，catalogSummary 会把各册串起来 */}
         <p className="text-[11px] font-mono uppercase tracking-[0.14em] text-accent leading-none hidden sm:block">
-          {catalog.book.series.replace('阶梯围棋基础训练丛书', '阶梯围棋')} · {catalog.book.title}
+          {catalogSummary()}
         </p>
         <div className="ml-auto flex items-center gap-3">
           <div className="text-xs text-ink-faint font-mono leading-none hidden md:block">

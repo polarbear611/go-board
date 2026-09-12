@@ -45,32 +45,63 @@ DATABASE_URL=sqlite:///./dev.db .venv/bin/uvicorn app.main:app --reload
 - **视口矩形恒为正方形**：容器是 `aspect-square`，非方 viewBox 在 `xMidYMid meet` 下的 letterbox 带不会被裁剪，会漏出相邻象限。`viewport.js` 的 `MARGIN === PADDING` 与 `MARGIN > STONE_R` 两条不变量有单测守着，别随手改。
 - **题目初始局面与试下棋盘分离**：store 中 `problemSetup`（题目）与对局状态分开，「还原题目」依赖这个分离，勿合并。
 - **前后端契约**：前端只调同源 `/api/problems`；`updatedAt` 为毫秒时间戳 int；POST 是按 problemNo 的 upsert；DELETE 幂等（不存在也 204）。改接口两边同步 + 更新 backend/README.md。
+- **dev 下 `/api` 默认转发到 `http://localhost:8000`**（`vite.config.js`）。没有后端时 Vite 的 SPA fallback 会把 `/api/problems` 也回成 `index.html`（HTTP **200** + `text/html`），`res.ok` 拦不住，炸在 `res.json()` 上、报 `Unexpected token '<'`。想直接用线上题库：`VITE_API_PROXY=https://go.xlingdata.com npm run dev`，⚠️ 此时本地「保存/删除」会真写生产库。
 
-### 题库与教材目录
+### 题库与教材目录（多册）
 
-> 以下文件是**本机私有、不入库**的教材内容（见 `.gitignore`）：`src/data/catalog.local.json`、`eval/ground-truth.json`、`eval/auto-read.json`。
-> 公开仓库里只有 `src/data/catalog.example.json`（虚构的示例目录，缺席真实目录时自动回落）。
+> 以下文件是**本机私有、不入库**的教材内容（见 `.gitignore`）：`src/data/catalog*.local.json`、
+> `eval/ground-truth.*.json`、`eval/auto-read.json`、`eval/out/`。
+> 公开仓库里只有 `src/data/catalog.example.json`（虚构的示例目录，一本真实目录都没有时自动回落）。
 
-`src/data/catalog.local.json` 是教材《死活专项训练（从10级到5级）》的目录：**5 单元 / 97 小组 / 582 题（187–768）**，
-由逐页核对书上的页眉（单元名）与页首标题（小组名）得出。全书每个小组正好 6 题、占一页，
-所以小组只存 `from`/`to` 两个端点，不逐题罗列；`catalog.js` 提供 `locate()` / `problemsOf()` / `describe()`。
+**一本书一个文件**：`src/data/catalog<.书 id>.local.json` 被 `import.meta.glob` 一并加载，按 `order` 排序。
+加一本书 = 丢一个文件进来，代码不用动。每本书的字段：
+
+| 字段 | 说明 |
+|---|---|
+| `id` | 书的标识，同时决定 `eval/ground-truth.<id>.json` 的文件名 |
+| `prefix` | **题号前缀**，见下。第二本起必须非空且此前没用过 |
+| `order` | 在加载弹窗里的排序 |
+| `book` / `range` / `units` | 书目信息、收录区间、单元 → 小组（小组只存 `from`/`to`，因为每组正好 6 题占一页） |
+
+**`prefix` 是题库主键的一部分，定了就不能改。** 两册书的题号区间完全重叠：死活册收 187–768，
+手筋册的 265–288 正落在里面。后端 POST 是按 `problemNo` 的 upsert——不带前缀存手筋第 265 题，
+会**静默覆盖**死活第 265 题：不报错、不冲突，只是那道题的棋形悄悄变了。
+死活册是先来的，沿用裸数字（`prefix: ""`）；手筋册用 `"手筋-"`。
+`catalog.test.js` 有断言守着「前缀唯一 + 至多一本空前缀」，别绕过。
+
+`catalog.js` 提供 `books` / `bookOf()` / `locate()` / `problemsOf()` / `bareNo()` / `describe()`。
+`locate()` **按前缀从长到短匹配**：空前缀那本能匹配任何字符串，必须最后才试，
+否则 `手筋-265` 会先被它认成第 265 题。
 
 **目录与题库是两回事，别合并**：目录是书的结构，与后端实际存了哪些题无关。
-加载弹窗按目录下钻（单元 → 小组 → 题号），用后端返回的题号集合决定哪些能点，
-没入库的题号照样显示但置灰——「这一组还差几道」才一眼可见。自己起名的题（如 `有眼杀无眼-248`）
-不在目录内，归入「最近保存」。
+加载弹窗按目录下钻（书 → 单元 → 小组 → 题号；只有一本书时自动省掉「书」这层），
+用后端返回的题号集合决定哪些能点，没入库的题号照样显示但置灰——「这一组还差几道」才一眼可见。
+数「有几道在库」**必须按完整题号数**（`countIn` 走 `problemsOf`），按裸数字数会把死活册的 265
+算进手筋册的进度里。自己起名的题（如 `有眼杀无眼-248`）不在任何目录内，归入「最近保存」。
 
-### 题库现状（2026-09-06 已上线）
+### 题库现状（2026-09-12）
 
-线上 590 道：本册 **187–768 共 582 道**（5 单元 97 小组），外加上学期遗留的
-`167` / `170` / `手筋-259` 与 5 道 `有眼杀无眼-*`。`手筋-259` 是灌库时从旧 `259`
-改名而来——新旧两册在这个号上撞车，后端 POST 是按 `problemNo` upsert，不改名会覆盖。
+线上 **614 道**，分属两册：
 
-**582 道已全部人工逐题核对完成**（2026-09-09），`eval/ground-truth.json` 的
-`confidence` 字段现在全是 `verified`。校对在一个带 `db` 的 Artifact 校对台上进行：
-左边书页切图、右边识别结果，点交叉点改子，判定由盘面差异算出而非让人再声明一次。
+| 书 | id | 前缀 | 在库 | 说明 |
+|---|---|---|---|---|
+| 死活专项训练（从10级到5级） | `shihuo` | （裸数字） | **582**（187–768，5 单元 97 小组） | 已全本录完并逐题核对 |
+| 手筋专项训练 | `tesuji` | `手筋-` | **24**（265–288，第 2 单元 4 组） | 在用，陆续上传 |
 
-几何识别的最终成绩（以人工结果为准）：
+另有 8 道不在任何目录内：`167` / `170` / `手筋-259` 与 5 道 `有眼杀无眼-*`，归「最近保存」。
+`手筋-259` 是灌库时从旧 `259` 改名而来——它就是后来定下 `prefix` 规则的那次撞车。
+它属手筋册，但那一页（253–264）还没拍，所以暂不在 `catalog.tesuji.local.json` 里。
+
+**死活册 582 道已全部人工逐题核对完成**（2026-09-09），`eval/ground-truth.shihuo.json` 的
+`confidence` 字段现在全是 `verified`。手筋册 24 道同样逐题对照复核过
+（`eval/ground-truth.tesuji.json`），这一批 `read_tile.py` 24/24 全中——照片平整、光均匀，
+且手筋图左侧三列没那么挤，正好避开了它的主要失败模式。**别把这个成绩当成常态**。
+
+复核有两条路，都用过：死活册那 582 道是在一个带 `db` 的 Artifact 校对台上过的
+（左边书页切图、右边识别结果，点交叉点改子，判定由盘面差异算出而非让人再声明一次）；
+题量小的批次直接看 `eval/out/cmp/` 的对照图更快，不必起校对台。
+
+死活册几何识别的最终成绩（以人工结果为准，这才是该拿来做预期的数字）：
 
 | | |
 |---|---|
@@ -84,11 +115,42 @@ DATABASE_URL=sqlite:///./dev.db .venv/bin/uvicorn app.main:app --reload
 「左侧三列」弱点一致；它们混在 200 道里连着校时被漏过，是后来模型复看切图才捞出来的。
 **一个孤零零在角上的多余子不改变棋形直觉，最难靠肉眼发现。**
 
-### eval/ —— 书页照片 → 棋形
+### eval/ —— 书页照片 → 上架（固定流程）
+
+新一批题目一律走这三步，别再手搓：
+
+```bash
+# 1) 照片 → 切图 → 识别 → 待校对 payload（不碰数据库）
+python3 eval/ingest.py --book tesuji --first 289 页1.jpg 页2.jpg ...
+python3 eval/ingest.py --book tesuji --first 289 --clipshare 4   # 或直接从共享板拉最新 4 张
+
+# 2) 人工逐题复核 eval/out/cmp/c<题号>.png（左照片、右解析），改错的直接改 payload
+#    这一步不能跳。理由见下面的准确率。
+
+# 3) 上架：默认干跑，--write 才真写
+python3 eval/publish.py eval/out/tesuji-289.json
+python3 eval/publish.py eval/out/tesuji-289.json --write
+```
+
+`--first` 是**这批第一页第一题**的题号，每页固定 6 题往后推。前缀不用写，
+`ingest.py` 从 `src/data/catalog.<book>.local.json` 读——**别在脚本里硬编码前缀**，
+抄一份就有抄错的机会，而错的后果是静默覆盖另一本书的题。
+
+**中间那步「补目录」容易忘**：`ingest.py` 生成的 `eval/out/<book>-<first>.md` 里列着，
+把这几页页眉上的单元名、页首的小组名按 6 题一组追加进目录文件。目录不补，
+题目在加载弹窗里只会出现在「最近保存」，按书翻不到。
+
+`publish.py` 有三道闸，都是为了挡住「静默写坏另一道题」：
+**① 干跑是默认**；**② 题号已存在就中止**（新一批应该是纯新增，撞号=前缀写错或 `--first` 算错，
+要覆盖得显式 `--force`）；**③ 写完逐条回读比对**，不一致就非零退出——HTTP 200 只说明请求到了。
+通过后自动把这批追加进 `eval/ground-truth.<book>.json`，`confidence` 记 `verified`。
+
+底层两个脚本仍可单独用：
 
 ```bash
 python3 eval/slice_page.py <书页照片> <起始题号> [输出目录]   # 一页切成 6 张单题图
 python3 eval/read_tile.py eval/tiles/q283.png              # 读出棋形，输出 JSON
+python3 eval/compare.py <切图> '<read_tile 的 JSON>' <出图>  # 单题返工时重画对照图
 ```
 
 `read_tile.py` 是**确定性图像处理，不调模型**：背景扣除 → 定网格 → 判子。
@@ -105,8 +167,9 @@ python3 eval/read_tile.py eval/tiles/q283.png              # 读出棋形，输�
 （逐条自由拟合会在外推时相邻两条挤到一起）；被棋子盖住的线要按间距还原序号补回；
 白子必须**正着认**（查整圈轮廓），只靠「内圈干净」会把网格外的空白纸面整片认成白子。
 
-`eval/ground-truth.json` 是人工确认的基准，`eval/auto-read.json` 是 283–768 的自动识别结果
-（含 `weak` 标记，未经人工核对）。切图 `eval/tiles/` 与原始照片 `题目照片/` 都已 gitignore。
+`eval/ground-truth.<book>.json` 是每本书人工确认的基准（`publish.py` 追加），
+`eval/auto-read.json` 是死活册 283–768 的自动识别结果（含 `weak` 标记，未经人工核对）。
+切图 `eval/tiles/`、流水线产物 `eval/out/` 与原始照片 `题目照片/` 都已 gitignore。
 
 ## 环境变量与密钥
 

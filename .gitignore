@@ -33,17 +33,21 @@ backend/**/__pycache__
 *.sln
 *.sw?
 
-# 评测集切图（由原始书页照片生成，勿入库）
+# 评测集切图 / 流水线产物（由原始书页照片生成，勿入库）
 eval/tiles/
 eval/pages/
+eval/out/
 题目照片/
 
 # 部署目标（含服务器地址，不入库）
 deploy/deploy.env
 
-# 教材内容：某本在售教材的完整目录与 582 道题的棋形转录，
-# 属该书内容，不进公开仓库（本机保留，构建时自动使用）
+# 教材内容：在售教材的目录与题目棋形转录，属该书内容，不进公开仓库
+#（本机保留，构建时自动使用）。一本书一个文件，所以这里用通配 ——
+# 加第三本书时别忘了它已经被忽略了，不会有「怎么没提交上去」的惊喜。
 src/data/catalog.local.json
+src/data/catalog.*.local.json
 eval/ground-truth.json
+eval/ground-truth.*.json
 eval/auto-read.json
 eval/__pycache__/

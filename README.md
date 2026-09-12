@@ -10,6 +10,10 @@
 > **关于题库**：本仓库**不含任何教材内容**。目录结构见 `src/data/catalog.example.json`，
 > 把你自己的目录按同样格式放在 `src/data/catalog.local.json`（已 gitignore）即自动生效；
 > 缺席时回落到示例目录，clone 下来直接能跑。题目棋形存在你自己的后端里（见 `backend/`）。
+>
+> **多本书**：一本书一个文件，`src/data/catalog.<书 id>.local.json` 会被一并加载。
+> 第二本起必须在 JSON 里设一个非空 `prefix`（如 `"手筋-"`）——题号是题库主键，
+> 两本书的第 265 题不带前缀会互相静默覆盖。`prefix` 定了就不能再改。
 
 ---
 
@@ -79,6 +83,10 @@ src/
 ├─ App.jsx                      # 顶层布局、快捷键、终局数子计算
 ├─ constants/board.js           # 棋盘常量 + boardToLabels 序列化
 ├─ api/problems.js              # 题目数据层（fetch 同源 /api）
+├─ data/
+│  ├─ catalog.js                # 教材目录：书 → 单元 → 小组 → 题号（多册，按前缀区分）
+│  ├─ catalog.example.json      # 示例目录（真实目录 catalog*.local.json 已 gitignore）
+│  └─ catalog.test.js           # 目录层单测：前缀唯一、题号不重叠、locate 不串本
 ├─ utils/
 │  ├─ goRules.js                # 围棋规则：找块、数气、提子、superko
 │  ├─ scoring.js                # 中国规则数子（地域 / 死子 / 胜负）
