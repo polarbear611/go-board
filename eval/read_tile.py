@@ -26,12 +26,14 @@
 import sys, json
 import numpy as np
 from PIL import Image, ImageFilter
+from inkgray import to_gray
 
 COLS = "ABCDEFGHJKLMNOPQRST"      # 跳过 I
 
 
 def ink(path):
-    im = Image.open(path).convert("L")
+    # to_gray：切图里可能有红笔批改，压在交叉点上会被读成子。见 inkgray.py。
+    im = to_gray(Image.open(path))
     g = np.asarray(im, dtype=np.float32)
     r = max(8, min(im.size) // 18)
     bg = np.asarray(im.filter(ImageFilter.GaussianBlur(r)), dtype=np.float32)
